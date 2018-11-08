@@ -19,6 +19,8 @@
 #include <tf/tf.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseWithCovariance.h>
+#include <actionlib/client/simple_action_client.h>
+#include <flir_pantilt_d46/PtuGotoAction.h>
 
 #define TIMEOUT_INTERVAL 40000
 
@@ -50,8 +52,8 @@ class CChargingActions
 		bool headOff(int value = 0);
 		void lightsOn();
 		void lightsOff();
-		void injectPosition(float x,float y,float phi); 
-		void injectPosition(); 
+		void injectPosition(float x,float y,float phi);
+		void injectPosition();
 		bool updateInjectionPositions(int stationID);
 
 		float injectX,injectY,injectPhi;
@@ -63,7 +65,8 @@ class CChargingActions
 		ros::NodeHandle *nh;
 		ros::Publisher cmd_vel;
 		ros::Publisher cmd_head;
-		ros::Publisher cmd_ptu;
+		// ros::Publisher cmd_ptu;
+		actionlib::SimpleActionClient ptu_ac;
 		geometry_msgs::Twist base_cmd;
 		sensor_msgs::JointState head;
 		sensor_msgs::JointState ptu;

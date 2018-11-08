@@ -7,7 +7,8 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	nh=n;
 	cmd_vel = nh->advertise<geometry_msgs::Twist>("/cmd_vel", 1);
 	cmd_head = nh->advertise<sensor_msgs::JointState>("/head/commanded_state", 1);
-	cmd_ptu = nh->advertise<sensor_msgs::JointState>("/ptu/cmd", 1);
+	// cmd_ptu = nh->advertise<sensor_msgs::JointState>("/ptu/cmd", 1);
+	ptu_ac = actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction>("/SetPTUState", 1);
 	poseInjection = nh->advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
 	currentAngle = 0;
 	head.name.resize(4);
@@ -31,6 +32,10 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	nh->param<double>("commonGain",commonGain,0.5);
 	nh->param<double>("dockTurnGain",dockTurnGain,0.3);
 	nh->param<double>("ptuSpeed",ptuSpeed,0.5);
+
+	ROS_INFO("Waiting for PTU action server to come up.");
+	ptu_ac.waitForServer();
+	ROS_INFO("PTU action server started.");
 }
 
 CChargingActions::~CChargingActions()
@@ -44,7 +49,7 @@ float normalizeAngle(float a,float minimal=-M_PI)
 	return a;
 }
 
-bool CChargingActions::updateInjectionPositions(int stationID) 
+bool CChargingActions::updateInjectionPositions(int stationID)
 {
 	const char *dockName[] = {"","_1_","_2_","_3_"};
 	bool updated = true;
@@ -54,7 +59,7 @@ bool CChargingActions::updateInjectionPositions(int stationID)
 		ROS_ERROR("Station ID incorrect! (%i)",stationID);
 		return false;
 	}
-	
+
 	sprintf(varName,"dock%sPositionX",dockName[stationID]);
 	ROS_INFO("Updating injection positions from %s",varName);
 	updated = updated && nh->getParam(varName, dockPositionX);
@@ -66,13 +71,13 @@ bool CChargingActions::updateInjectionPositions(int stationID)
 	return updated;
 }
 
-void CChargingActions::injectPosition(float x,float y,float phi) 
+void CChargingActions::injectPosition(float x,float y,float phi)
 {
 	float alpha = -ptuPan;//PTU rotation
 	injectPhi = normalizeAngle(phi+alpha+dockPositionPhi+M_PI);
 	float iX = x - 0.365/2*cos(injectPhi);
 	float iY = y - 0.365/2*sin(injectPhi);
-	
+
 	injectX = iX*cos(dockPositionPhi)-iY*sin(dockPositionPhi)+dockPositionX;
 	injectY = iX*sin(dockPositionPhi)+iY*cos(dockPositionPhi)+dockPositionY;
 	ROS_INFO("Relative position %.3f %.3f %.3f. Dock position %.3f %.3f %.3f. Injecting %f %f %f",iX,iY,phi+alpha,dockPositionX,dockPositionY,dockPositionPhi,injectX,injectY,injectPhi);
@@ -81,8 +86,8 @@ void CChargingActions::injectPosition(float x,float y,float phi)
 	injectionTime = ros::Time::now();
 	injectionTime.sec -= 5;
 }
- 
-void CChargingActions::injectPosition() 
+
+void CChargingActions::injectPosition()
 {
 	geometry_msgs::PoseWithCovarianceStamped pos;
 	ros::Time stamp;
@@ -94,7 +99,7 @@ void CChargingActions::injectPosition()
 	tf::Quaternion q;
 	q.setRPY(0,0,injectPhi);
 	tf::quaternionTFToMsg(q, pos.pose.pose.orientation);
-	
+
 	float xc = 0.02;
 	float yc = 0.02;
 	float fc = 0.02;
@@ -104,7 +109,7 @@ void CChargingActions::injectPosition()
 		0, 0, 1e-3, 0, 0, 0,
 		0, 0, 0, 1e-3, 0, 0,
 		0, 0, 0, 0, 1e-3, 0,
-		0, 0, 0, 0, 0, fc 
+		0, 0, 0, 0, 0, fc
 	};
 	for (unsigned int i = 0; i < pos.pose.covariance.size(); i++) pos.pose.covariance[i] = covariance[i];
 	poseInjection.publish(pos);
@@ -125,12 +130,18 @@ void CChargingActions::lightsOn()
 
 void CChargingActions::movePtu(int pan,int tilt)
 {
-	ptu.name[0] ="tilt";
-	ptu.name[1] ="pan";
-	ptu.position[0] = (float)tilt/100.0;
-	ptu.position[1] = (float)pan/100.0;
-	ptu.velocity[0] = ptu.velocity[1] = ptuSpeed;
-	cmd_ptu.publish(ptu);
+	flir_pantilt_d46::PtuGotoGoal ptu_goal;
+	ptu_goal.pan = pan;
+	ptu_goal.tilt = tilt;
+	ptu_goal.pan_vel = ptu_goal.tilt_vel = ptuSpeed;
+	ptu_ac.sendGoal(ptu_goal);
+
+	// ptu.name[0] ="tilt";
+	// ptu.name[1] ="pan";
+	// ptu.position[0] = (float)tilt/100.0;
+	// ptu.position[1] = (float)pan/100.0;
+	// ptu.velocity[0] = ptu.velocity[1] = ptuSpeed;
+	// cmd_ptu.publish(ptu);
 }
 
 void CChargingActions::controlHead(int lids,int tilt, int pan)
@@ -164,7 +175,7 @@ bool CChargingActions::rotateByAngle(float angle)
 		 desiredAngle = normalizeAngle(currentAngle+angle);
 		 turnAngle = angle;
 	}
-	base_cmd.linear.x = 0; 
+	base_cmd.linear.x = 0;
 	base_cmd.angular.z = normalizeAngle(desiredAngle-currentAngle)*commonGain;
 	cmd_vel.publish(base_cmd);
 	progress = 100*(1-fabs(normalizeAngle(desiredAngle-currentAngle))/fabs(turnAngle));
@@ -196,7 +207,7 @@ bool CChargingActions::moveByDistance(float distance)
 		 if (speedSign < 0) base_cmd.linear.x = fmax(fmin(base_cmd.linear.x,obstacleDistance-0.45),0);
 	}
 	base_cmd.linear.x = speedSign*base_cmd.linear.x*dockTurnGain;
-	base_cmd.angular.z = 0; 
+	base_cmd.angular.z = 0;
 	cmd_vel.publish(base_cmd);
 	progress = 100*travelledDistance/desiredDistance;
 	return (fabs(desiredDistance - travelledDistance) < 0.02);
@@ -204,7 +215,7 @@ bool CChargingActions::moveByDistance(float distance)
 
 bool CChargingActions::search()
 {
-	base_cmd.linear.x = 0; 
+	base_cmd.linear.x = 0;
 	base_cmd.angular.z = 0.2;
 	cmd_vel.publish(base_cmd);
 	controlHead(100,0,0);
@@ -285,12 +296,12 @@ bool CChargingActions::measure(STrackedObject *o1,STrackedObject *o2,int count,b
 	progress = 100*(posCount+30)/(maxCount+30);
 	if (posCount >=0){
 		avgPos1.x += o1->x;
-		avgPos1.y += o1->y; 
-		avgPos1.z += o1->z; 
-		avgPos1.yaw += o1->yaw; 
+		avgPos1.y += o1->y;
+		avgPos1.z += o1->z;
+		avgPos1.yaw += o1->yaw;
 		avgPos2.x += o2->x;
-		avgPos2.y += o2->y; 
-		avgPos2.yaw += o2->yaw; 
+		avgPos2.y += o2->y;
+		avgPos2.yaw += o2->yaw;
 	}
 	if (o2->id >=0 && o2->id <MAX_STATIONS) stationID[o2->id]++;
 	posCount++;
@@ -311,7 +322,7 @@ bool CChargingActions::measure(STrackedObject *o1,STrackedObject *o2,int count,b
 			{
 				maxStation = stationID[i];
 				realStation = i;
-			}		
+			}
 		}
 		ROS_INFO("STATION %i IDs: %i %i %i %i %i %i",realStation,stationID[0],stationID[1],stationID[2],stationID[3],sumStation,maxCount);
 		if (maxStation < 0.8*sumStation || sumStation < maxCount){
@@ -335,12 +346,12 @@ bool CChargingActions::measure(STrackedObject *o1,STrackedObject *o2,int count,b
 }
 
 void CChargingActions::initCharging(bool charge,int maxMeasurements)
-{	
+{
 	controlHead(100,0,0);
 	ros::spinOnce();
 	progress = 10;
 	if (charge){
-		measure(NULL,NULL,maxMeasurements);	
+		measure(NULL,NULL,maxMeasurements);
 	}else{
 		lastAngle = currentAngle;
 	}
@@ -352,7 +363,7 @@ bool CChargingActions::approach(STrackedObject station,float dist)
 	static float distance;
 	if (dist != 0.0) distance = fabs(dist);
 	bool complete = false;
-	float angle = atan2(station.y,station.x); 
+	float angle = atan2(station.y,station.x);
 	base_cmd.linear.x = fmin(fabs((station.x-(desired-0.4))*cos(cos(cos(angle)))+0.2),1)*0.4;
 	base_cmd.linear.x = fmin(base_cmd.linear.x,obstacleDistance-0.25)*commonGain;
 	if (base_cmd.linear.x < 0) base_cmd.linear.x = 0;
@@ -360,7 +371,7 @@ bool CChargingActions::approach(STrackedObject station,float dist)
 	if (base_cmd.linear.x < 0.01 && distance > 1.0)  base_cmd.angular.z = atan2(station.y,station.x)*0.7;
 	ROS_INFO("Approaching %.3f %.3f",station.x,desired);
 	if (station.x < desired){
-		complete = true; 
+		complete = true;
 		base_cmd.linear.x = base_cmd.angular.z = 0;
 		startProg = station.y;
 	}
@@ -373,7 +384,7 @@ bool CChargingActions::adjust(STrackedObject station,float in,float tol)
 {
 	static float init;
 	if (in != 0.0) init = fabs(in);
-	base_cmd.linear.x = 0; 
+	base_cmd.linear.x = 0;
 	base_cmd.angular.z = atan2(station.y,station.x)*commonGain;
 	ROS_INFO("Adjusting position: %f %f",station.y,atan2(station.y,station.x));
 	if (fabs(station.y) < tol){
@@ -389,7 +400,7 @@ bool CChargingActions::dock(STrackedObject station)
 {
 	bool complete = false;
 	base_cmd.linear.x = (station.x - 5*fabs(station.y)+0.3)*0.2;
-	if (fabs(station.y) > 0.02) base_cmd.linear.x = 0; 
+	if (fabs(station.y) > 0.02) base_cmd.linear.x = 0;
 	base_cmd.angular.z = station.y*dockTurnGain;
 	base_cmd.angular.z = atan2(station.y,station.x)*dockTurnGain;
 	if (station.x < 0.025){
@@ -447,6 +458,6 @@ bool CChargingActions::actionStuck()
 		if (progressSpeed < 0) printf("KOO: %i %i %f %f\n",timi,lastTimer,progr,lastProgress);
 	}
 	lastTimer = timer.getTime();
-	lastProgress = progr; 
+	lastProgress = progr;
 	if (progressSpeed < 0.2) return true; else return false;
 }
