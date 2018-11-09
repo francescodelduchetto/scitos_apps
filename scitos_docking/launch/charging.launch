@@ -5,7 +5,7 @@
   <arg name="positionUpdate" default="false" />
   <arg name="commonGain" default="1" />
   <arg name="dockTurnGain" default="1" />
-  <arg name="ptuSpeed" default="1" />
+  <arg name="ptuSpeed" default="60" />
 
   <!-- now has an IF checking for the arg "remote" -->
   <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true" />

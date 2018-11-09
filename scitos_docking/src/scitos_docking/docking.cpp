@@ -214,10 +214,10 @@ void odomCallback(const nav_msgs::Odometry &msg)
 				robot->controlHead(100,0,0);
 			}
 			break;
-		case STATE_UNDOCK_MOVE: 
+		case STATE_UNDOCK_MOVE:
 			robot->controlHead(100,180,0);
 			if (robot->moveByDistance()){
-				robot->movePtu(-314,0);
+				robot->movePtu(-180,0);
 				rotateBy = (M_PI+0.01);
 				robot->rotateByAngle(rotateBy);
 				state = STATE_UNDOCK_ROTATE;
@@ -538,7 +538,7 @@ void dockingServerCallback(const move_base_msgs::MoveBaseGoalConstPtr& goal, Doc
 	}else{
 		dockingServer->setAborted(result);
 	}
-	if (chargerDetected)robot->movePtu(-314,0); else robot->movePtu(0,0);
+	if (chargerDetected)robot->movePtu(-180,0); else robot->movePtu(0,0);
 	robot->lightsOff();
 }
 
@@ -572,7 +572,7 @@ void undockingServerCallback(const move_base_msgs::MoveBaseGoalConstPtr& goal, D
 			robot->headOn(130);
 			state = STATE_HEAD_ON;
 		}
-		robot->movePtu(-314,53);
+		robot->movePtu(-180,30);
 	}
 	if (state == STATE_REJECTED){
 		undockingServer->setAborted(result);
@@ -603,7 +603,7 @@ void undockingServerCallback(const move_base_msgs::MoveBaseGoalConstPtr& goal, D
 	}else{
 		undockingServer->setAborted(result);
 	}
-	if (chargerDetected)robot->movePtu(-314,0); else robot->movePtu(0,0);
+	if (chargerDetected)robot->movePtu(-180,0); else robot->movePtu(0,0);
 	robot->lightsOff();
 }
 
@@ -634,7 +634,7 @@ void actionServerCallback(const scitos_docking::ChargingGoalConstPtr& goal, Serv
 	if (goal->Command == "test"){
 		 robot->lightsOn();
 		 ptupos = (int)goal->Timeout;
-		 robot->movePtu(-314,0);
+		 robot->movePtu(-180,0);
 		 waitCycles = 0;
 		 state = STATE_TEST1;
 	}
@@ -662,7 +662,7 @@ void actionServerCallback(const scitos_docking::ChargingGoalConstPtr& goal, Serv
 				robot->headOn(130);
 				state = STATE_HEAD_ON;
 			}
-			robot->movePtu(-314,53);
+			robot->movePtu(-180,30);
 		}
 	}
 	if (state == STATE_REJECTED){
@@ -695,7 +695,7 @@ void actionServerCallback(const scitos_docking::ChargingGoalConstPtr& goal, Serv
 	}else{
 		server->setAborted(result);
 	}
-	if (chargerDetected)robot->movePtu(-314,0); else robot->movePtu(0,0);
+	if (chargerDetected)robot->movePtu(-180,0); else robot->movePtu(0,0);
 	robot->lightsOff();
 }
 
@@ -721,7 +721,7 @@ void joyCallback(const scitos_teleop::action_buttons::ConstPtr &msg)
 				robot->headOn(130);
 				state = STATE_HEAD_ON;
 			}
-			robot->movePtu(-314,53);
+			robot->movePtu(-180,30);
 			chargingClient.initiateUndocking();
 		} else {
 			state = STATE_INIT;
