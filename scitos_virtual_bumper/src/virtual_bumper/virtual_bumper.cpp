@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include "ros/ros.h"
+#include <ros/console.h>
 #include <scitos_msgs/EnableMotors.h>
+#include <scitos_msgs/ResetMotorStop.h>
 #include <scitos_msgs/MotorStatus.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
@@ -13,7 +15,7 @@
 static int maxSteady = 30;
 ros::Subscriber odomSub,cmdSub,motSub,poseSub;
 ros::Publisher bumperEvent,bumperReport;
-ros::ServiceClient enableMotors; 
+ros::ServiceClient enableMotors, resetMotorStop;
 bool steady = false;
 bool stopped = true;
 int steadyCnt = 0;
@@ -21,7 +23,8 @@ int steadyCnt = 0;
 bool freeRunByVirtualBumper = false;
 bool stopRunByVirtualBumper = false;
 
-bool freeRun = false;
+//bool freeRun = false;
+bool motorStopped = false;
 geometry_msgs::PoseStamped currentPose;
 geometry_msgs::PoseStamped initialPosition;
 geometry_msgs::PoseStamped finalPosition;
@@ -41,21 +44,22 @@ void reportPosition(bool pushed)
 }
 
 void motorCallback(const scitos_msgs::MotorStatus &msg)
-{	
-	bool freeRunMsg = (msg.free_run!=0);
-	if (freeRun != freeRunMsg) 
+{
+	//freeRun = (msg.free_run!=0);
+        bool motorStoppedMsg = (msg.motor_stopped!=0);
+	if (motorStopped != motorStoppedMsg)
 	{
-		reportPosition(freeRunMsg);
+		reportPosition(motorStopped);
 
 		/*is freerun over and was is initiateb by the virtual bumper?*/
-		if (freeRunMsg ==false && freeRunByVirtualBumper)
+		/*if (motorStopped == false && freeRunByVirtualBumper)
 		{
-			float dx = (finalPosition.pose.position.x - initialPosition.pose.position.x); 
+			float dx = (finalPosition.pose.position.x - initialPosition.pose.position.x);
 			float dy = (finalPosition.pose.position.y - initialPosition.pose.position.y);
 			float distance = sqrt(dx*dx+dy*dy);
 			float angle = 2*fabs(atan2(initialPosition.pose.orientation.w,initialPosition.pose.orientation.z)-atan2(finalPosition.pose.orientation.w,finalPosition.pose.orientation.z));
 			if (angle > M_PI) angle = fabs(angle - 2*M_PI);
-			if (angle > rotationThreshold || distance > translationThreshold){	
+			if (angle > rotationThreshold || distance > translationThreshold){
 				scitos_virtual_bumper::virtualbumperreport report;
 				report.initial = initialPosition;
 				report.final   = finalPosition;
@@ -65,9 +69,10 @@ void motorCallback(const scitos_msgs::MotorStatus &msg)
 				bumperReport.publish(report);
 			}
 			freeRunByVirtualBumper = stopRunByVirtualBumper = false;
-		}
+                        ROS_INFO("freeRunByVirtualBumper reset to false");
+		}*/
 	}
-	freeRun = freeRunMsg;
+	motorStopped = motorStoppedMsg;
 }
 
 void cmdCallback(const geometry_msgs::Twist &msg)
@@ -87,22 +92,28 @@ void odomCallback(const nav_msgs::Odometry &msg)
 {
 	if (msg.twist.twist.linear.x == 0 && msg.twist.twist.angular.z == 0) steady=true; else steady=false;
 	/*standing long enough with motors on and suddenly wheels turned?*/
-	if (steadyCnt > maxSteady && steady == false && freeRun == false)
+	if (steadyCnt > maxSteady && steady == false && motorStopped)
 	{
 		scitos_msgs::EnableMotors motors;
 		motors.request.enable = false;
-		enableMotors.call(motors);
+ 		enableMotors.call(motors);
+                // need to call the reset twice, most of times only one is not effective
+                scitos_msgs::ResetMotorStop resetMotor;
+                resetMotorStop.call(resetMotor);
+                resetMotorStop.call(resetMotor);
+                ROS_INFO("reset_motorstop service called");
 		freeRunByVirtualBumper = true;
 	}
 
 	/*am I too long on free run?*/
-	if (steadyCnt > maxSteady && steady && freeRun && freeRunByVirtualBumper)
+	/*if (steadyCnt > maxSteady && steady && motorStopped == false && freeRunByVirtualBumper)
 	{
 		scitos_msgs::EnableMotors motors;
 		motors.request.enable = true;
 		enableMotors.call(motors);
 		stopRunByVirtualBumper = true;
-	}
+                ROS_INFO("enable_motors true  service called");
+	}*/
 	if (stopped && steady) steadyCnt++; else steadyCnt = 0;
 }
 
@@ -114,6 +125,7 @@ int main(int argc,char* argv[])
 	nh->param("reportTranslationThreshold",translationThreshold,0.2);
 	nh->param("reportRotationThreshold",rotationThreshold,0.1);
 	enableMotors = nh->serviceClient<scitos_msgs::EnableMotors>("enable_motors");
+        resetMotorStop = nh->serviceClient<scitos_msgs::ResetMotorStop>("reset_motorstop");
 	odomSub = nh->subscribe("odom", 1, odomCallback);
 	cmdSub = nh->subscribe("cmd_vel", 1, cmdCallback);
 	motSub = nh->subscribe("motor_status", 1, motorCallback);
