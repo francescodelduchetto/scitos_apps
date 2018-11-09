@@ -8,7 +8,6 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	cmd_vel = nh->advertise<geometry_msgs::Twist>("/cmd_vel", 1);
 	cmd_head = nh->advertise<sensor_msgs::JointState>("/head/commanded_state", 1);
 	// cmd_ptu = nh->advertise<sensor_msgs::JointState>("/ptu/cmd", 1);
-	ptu_ac = actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction>("/SetPTUState", 1);
 	poseInjection = nh->advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
 	currentAngle = 0;
 	head.name.resize(4);
@@ -33,9 +32,6 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	nh->param<double>("dockTurnGain",dockTurnGain,0.3);
 	nh->param<double>("ptuSpeed",ptuSpeed,0.5);
 
-	ROS_INFO("Waiting for PTU action server to come up.");
-	ptu_ac.waitForServer();
-	ROS_INFO("PTU action server started.");
 }
 
 CChargingActions::~CChargingActions()
@@ -130,6 +126,11 @@ void CChargingActions::lightsOn()
 
 void CChargingActions::movePtu(int pan,int tilt)
 {
+      	actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction> ptu_ac("/SetPTUState", true);
+	ROS_INFO("Waiting for PTU action server to come up.");
+	ptu_ac.waitForServer();
+	ROS_INFO("PTU action server started.");
+
 	flir_pantilt_d46::PtuGotoGoal ptu_goal;
 	ptu_goal.pan = pan;
 	ptu_goal.tilt = tilt;

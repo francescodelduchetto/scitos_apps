@@ -20,6 +20,7 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseWithCovariance.h>
 #include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/terminal_state.h>
 #include <flir_pantilt_d46/PtuGotoAction.h>
 
 #define TIMEOUT_INTERVAL 40000
@@ -66,7 +67,7 @@ class CChargingActions
 		ros::Publisher cmd_vel;
 		ros::Publisher cmd_head;
 		// ros::Publisher cmd_ptu;
-		actionlib::SimpleActionClient ptu_ac;
+		//actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction> ptu_ac;
 		geometry_msgs::Twist base_cmd;
 		sensor_msgs::JointState head;
 		sensor_msgs::JointState ptu;
