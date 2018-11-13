@@ -67,7 +67,7 @@ class CChargingActions
 		ros::Publisher cmd_vel;
 		ros::Publisher cmd_head;
 		// ros::Publisher cmd_ptu;
-		//actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction> ptu_ac;
+		actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction>* ptu_ac;
 		geometry_msgs::Twist base_cmd;
 		sensor_msgs::JointState head;
 		sensor_msgs::JointState ptu;

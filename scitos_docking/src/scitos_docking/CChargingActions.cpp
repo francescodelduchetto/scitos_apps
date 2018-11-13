@@ -32,6 +32,12 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	nh->param<double>("dockTurnGain",dockTurnGain,0.3);
 	nh->param<double>("ptuSpeed",ptuSpeed,60);
 
+	ptu_ac = new actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction>("/SetPTUState", true);
+	ROS_INFO("Waiting for PTU action server to come up.");
+	if (!ptu_ac->waitForServer(ros::Duration(60)))
+		ROS_INFO("PTU action server could not be contacted");
+	ROS_INFO("PTU action server started.");
+
 }
 
 CChargingActions::~CChargingActions()
@@ -126,28 +132,19 @@ void CChargingActions::lightsOn()
 
 void CChargingActions::movePtu(int pan,int tilt)
 {
-      	actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction> ptu_ac("/SetPTUState", true);
-	ROS_INFO("Waiting for PTU action server to come up.");
-	if (!ptu_ac.waitForServer(ros::Duration(30))) 
-	{
-		ROS_INFO("PTU action server could not be contacted");
-		return ;
-	}
-	ROS_INFO("PTU action server started.");
-
 	ROS_INFO("Sending command %d %d", pan, tilt);
 	flir_pantilt_d46::PtuGotoGoal ptu_goal;
 	ptu_goal.pan = pan;
 	ptu_goal.tilt = tilt;
 	ptu_goal.pan_vel = ptu_goal.tilt_vel = ptuSpeed;
-	ptu_ac.sendGoal(ptu_goal);
+	ptu_ac->sendGoal(ptu_goal);
 
 	//wait for the action to return
- 	bool finished_before_timeout = ptu_ac.waitForResult(ros::Duration(30.0));
+ 	bool finished_before_timeout = ptu_ac->waitForResult(ros::Duration(30.0));
 
 	if (finished_before_timeout)
 	{
-		actionlib::SimpleClientGoalState state = ptu_ac.getState();
+		actionlib::SimpleClientGoalState state = ptu_ac->getState();
 		ROS_INFO("Action finished: %s",state.toString().c_str());
 	}
 	else
