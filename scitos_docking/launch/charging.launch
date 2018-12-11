@@ -3,8 +3,8 @@
   <arg name="user" default="" />
   <arg name="lightEBC" default="" />
   <arg name="positionUpdate" default="false" />
-  <arg name="commonGain" default="1" />
-  <arg name="dockTurnGain" default="1" />
+  <arg name="commonGain" default="0.5" />
+  <arg name="dockTurnGain" default="0.3" />
   <arg name="ptuSpeed" default="60" />
 
   <!-- now has an IF checking for the arg "remote" -->
@@ -20,5 +20,9 @@
     <param name="commonGain" value="$(arg commonGain)" />
     <param name="dockTurnGain" value="$(arg dockTurnGain)" />
     <param name="ptuSpeed" value="$(arg ptuSpeed)" />
+
+    <param name="circleDiameter" type="double" value="0.049" />
+    <param name="circleHorizontalDistance" type="double" value="0.122" />
+    <param name="circleVerticalDistance" type="double" value="0.086" />
   </node>
 </launch> 

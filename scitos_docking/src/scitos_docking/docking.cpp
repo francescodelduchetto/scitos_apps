@@ -47,7 +47,6 @@ int timeOut = 120000;
 int safetyTimeOut = 20000;
 int  defaultImageWidth= 320;
 int  defaultImageHeight = 240;
-float circleDiameter = 0.05;
 float rotateBy = 0;
 bool chargerDetected = false;
 CChargingActions *robot;
@@ -828,7 +827,7 @@ int main(int argc,char* argv[])
 
 	dump = new CDump(NULL,256,1000000);
 	image = new CRawImage(defaultImageWidth,defaultImageHeight,4);
-	trans = new CTransformation(circleDiameter,nh);
+	trans = new CTransformation(nh);
 	for (int i = 0;i<MAX_PATTERNS;i++) detectorArray[i] = new CCircleDetect(defaultImageWidth,defaultImageHeight);
 
 	initComponents();

@@ -4,7 +4,8 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 {
 	timer.reset();
 	timer.start();
-	nh=n;
+	n = new ros::NodeHandle("~");
+        nh=n;
 	cmd_vel = nh->advertise<geometry_msgs::Twist>("/cmd_vel", 1);
 	cmd_head = nh->advertise<sensor_msgs::JointState>("/head/commanded_state", 1);
 	// cmd_ptu = nh->advertise<sensor_msgs::JointState>("/ptu/cmd", 1);
@@ -23,15 +24,21 @@ CChargingActions::CChargingActions(ros::NodeHandle *n)
 	warningLevel = .2;
 	poseSet = true;
 	injectX = injectY = injectPhi = 0;
-	nh->param<std::string>("lightEBC", light.ebcport, "Port0_12V_Enabled");
+	if (!nh->getParam("lightEBC", light.ebcport))
+		light.ebcport = "Port0_12V_Enabled";
 	obstacleDistance = 0;
-	nh->param<double>("dockPositionX",dockPositionX,0);
-	nh->param<double>("dockPositionY",dockPositionY,0);
-	nh->param<double>("dockPositionPhi",dockPositionPhi,M_PI);
-	nh->param<double>("commonGain",commonGain,0.5);
-	nh->param<double>("dockTurnGain",dockTurnGain,0.3);
-	nh->param<double>("ptuSpeed",ptuSpeed,60);
-
+	if (!nh->getParam("dockPositionX",dockPositionX))
+		dockPositionX = 0;
+	if (!nh->getParam("dockPositionY",dockPositionY))
+		dockPositionY = 0;
+	if (!nh->getParam("dockPositionPhi",dockPositionPhi))
+		dockPositionPhi = M_PI;
+	if (!nh->getParam("commonGain",commonGain))
+		commonGain = 1;
+	if (!nh->getParam("dockTurnGain",dockTurnGain))
+		dockTurnGain = 1;
+	if (!nh->getParam("ptuSpeed",ptuSpeed))
+		ptuSpeed = 60;
 	ptu_ac = new actionlib::SimpleActionClient<flir_pantilt_d46::PtuGotoAction>("/SetPTUState", true);
 	ROS_INFO("Waiting for PTU action server to come up.");
 	if (!ptu_ac->waitForServer(ros::Duration(60)))

@@ -23,14 +23,21 @@ void CTransformation::clearOffsets()
 	dockOffset.x = dockOffset.y = dockOffset.z = 0;
 }
 
-CTransformation::CTransformation(float diam, ros::NodeHandle *n)
+CTransformation::CTransformation(ros::NodeHandle *n)
 {
+	n = new ros::NodeHandle("~");
 	nh = n;
 	clearOffsets();
 	char dummy[1000];
-	trackedObjectDiameter = diam;
+	if (!n->getParam("circleDiameter",trackedObjectDiameter))
+		trackedObjectDiameter = 0.05;
+	if (!n->getParam("circleHorizontalDistance",circleHorizontalDistance))
+		circleHorizontalDistance = 0.12;
+	if (!n->getParam("circleVerticalDistance",circleVerticalDistance))
+		circleVerticalDistance = 0.09;
+	//printf("%f %f %f\n",trackedObjectDiameter,circleHorizontalDistance,circleVerticalDistance);
 	cc[0] = 320;
-	cc[1] = 240; 
+	cc[1] = 240;
 	fc[0] = fc[1] = 570;
 	memset(kc,0,sizeof(float)*6);
 	kc[0] = 1.0;
@@ -112,8 +119,8 @@ float CTransformation::unbarrelY(float x,float y)
 void CTransformation::transformXYerr(float *ax,float *ay)
 {
 	float x,y,dx,dy,r,rad;
-	//*ax = x = (*ax-cc[0])/fc[0];
-	//*ay = y = (*ay-cc[1])/fc[1];
+	// *ax = x = (*ax-cc[0])/fc[0];
+	// *ay = y = (*ay-cc[1])/fc[1];
 	x = *ax;
 	y = *ay;
 	r = x*x+y*y;
@@ -236,8 +243,8 @@ STrackedObject CTransformation::getOwnPosition(STrackedObject o[])
 	qsort(trk,3,sizeof(STrackedObject),sortByDistance);
 //	for (int i = 0;i<3;i++) fprintf(stdout,"Dock position %i: %.3f %.3f %.3f %.3f\n",i,trk[i].x,trk[i].y,trk[i].z,trk[i].d);
 //	for (int i=0;i<3;i++) fprintf(stdout,"%.3f ",trk[i].d);
-	//fprintf(stdout,"%.3f \n",sqrt(trk[1].d*trk[1].d+trk[2].d*trk[2].d));
-	D3transform[0] =  calibrate3D(trk[0],trk[2],trk[1],0.12,0.09);
+	//fprintf(stdout,"DISTANDS 1: %.3f \n",trk[1].d);
+	D3transform[0] =  calibrate3D(trk[0],trk[2],trk[1],circleHorizontalDistance,circleVerticalDistance);
 	trk[3].x = trk[3].y = trk[3].z =  0;
 	trk[3] = transform3D(trk[3],1);
 	trk[3].x -= ownOffset.x;

@@ -45,7 +45,7 @@ typedef struct{
 class CTransformation
 {
 	public:
-		CTransformation(float diam,ros::NodeHandle *nh);
+		CTransformation(ros::NodeHandle *nh);
 		~CTransformation();
 		void clearOffsets();
 
@@ -100,7 +100,7 @@ class CTransformation
 		float gDimX,gDimY;
 		S3DTransform D3transform[4];
 		int width,height;
-		float trackedObjectDiameter;
+		double trackedObjectDiameter;
 		float kc[6];
 		float kcerr[6];
 		float fcerr[2];
@@ -108,6 +108,8 @@ class CTransformation
 		STrackedObject c2D[4];
 		sem_t trfparamsem;
 		ros::NodeHandle *nh;
+		double circleHorizontalDistance;
+		double circleVerticalDistance;
 };
 
 #endif
